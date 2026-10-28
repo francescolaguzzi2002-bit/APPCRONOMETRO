@@ -1,0 +1,16 @@
+{
+  "name": "Cronometro Rilievi",
+  "short_name": "Rilievi",
+  "description": "Cronometro a giri per i rilievi dei tempi ciclo: cicli necessari, anomalie, rilavorazioni, elementi a frequenza.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "it",
+  "background_color": "#6a4cff",
+  "theme_color": "#6a4cff",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

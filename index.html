@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta charset="utf-8">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#6a4cff">
+<meta name="apple-mobile-web-app-title" content="Rilievi">
+
+<title>Cronometro Rilievi</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@300;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Manrope:wght@500;600;700;800&display=swap">
+</head>
+<body>
+<style>
+/* Stopwatch layout: header (menu · article · new), embossed dial with progress ring, three embossed round buttons (Stop · ! · Giro), lap list.
+   Palette from the suture world: violet (absorbable thread), teal-green (go), coral (stop), amber (anomaly), steel neutrals. */
+:root{
+  --bg:#eceef6; --panel:#ffffff; --fg:#141a2e; --muted:#5d6584; --line:#d8dbea; --track:#dadeec;
+  --accent:#6a4cff; --accent-2:#9a7dff; --accent-fg:#ffffff; --accent-soft:#ebe6ff;
+  --go:#0fae80; --go-2:#3fdcab; --go-fg:#ffffff;
+  --stop:#e8384f; --stop-2:#ff7a8a;
+  --amber:#f08c00; --amber-2:#ffc94d; --amber-fg:#2a1700;
+  --ok:#0f9e6e; --warn:#c77a00; --bad:#e0314a; --ok-soft:#d9f5ea; --warn-soft:#fff0d1; --bad-soft:#ffe1e5;
+  --btn:#e4e7f2; --btn-2:#f7f8fc; --btn-fg:#2a3150;
+  --hi:rgba(255,255,255,.95); --sh:rgba(52,60,110,.22);
+  --display:"Bricolage Grotesque","Manrope","Helvetica Neue",Arial,sans-serif;
+  --body:"Manrope","Helvetica Neue",Arial,sans-serif;
+  --mono:"Azeret Mono","JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0c0f1d; --panel:#161a2e; --fg:#eef0fa; --muted:#9aa1c2; --line:#262b46; --track:#232843;
+  --accent:#8466ff; --accent-2:#b29cff; --accent-fg:#ffffff; --accent-soft:#2a2350;
+  --go:#14b886; --go-2:#5ce8bd; --go-fg:#ffffff;
+  --stop:#f0445b; --stop-2:#ff8c9a;
+  --amber:#f59f00; --amber-2:#ffd166; --amber-fg:#2a1700;
+  --ok:#3ddc97; --warn:#ffc046; --bad:#ff6b81; --ok-soft:#103326; --warn-soft:#3a2c0d; --bad-soft:#3d1720;
+  --btn:#1d2238; --btn-2:#262c47; --btn-fg:#dfe3f6;
+  --hi:rgba(255,255,255,.06); --sh:rgba(0,0,0,.6); color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0c0f1d; --panel:#161a2e; --fg:#eef0fa; --muted:#9aa1c2; --line:#262b46; --track:#232843;
+  --accent:#8466ff; --accent-2:#b29cff; --accent-fg:#ffffff; --accent-soft:#2a2350;
+  --go:#14b886; --go-2:#5ce8bd; --go-fg:#ffffff;
+  --stop:#f0445b; --stop-2:#ff8c9a;
+  --amber:#f59f00; --amber-2:#ffd166; --amber-fg:#2a1700;
+  --ok:#3ddc97; --warn:#ffc046; --bad:#ff6b81; --ok-soft:#103326; --warn-soft:#3a2c0d; --bad-soft:#3d1720;
+  --btn:#1d2238; --btn-2:#262c47; --btn-fg:#dfe3f6;
+  --hi:rgba(255,255,255,.06); --sh:rgba(0,0,0,.6); color-scheme:dark }
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.35;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:max(8px,env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-bottom,0px))}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%;min-width:0}
+svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.app{max-width:480px;margin:0 auto;display:flex;flex-direction:column;align-items:center;gap:14px}
+
+/* header */
+.top{width:100%;display:grid;grid-template-columns:46px 1fr 46px;align-items:center;gap:8px}
+.icon{width:46px;height:46px;border-radius:50%;color:var(--btn-fg);display:grid;place-items:center;
+  background:linear-gradient(145deg,var(--btn-2),var(--btn));box-shadow:4px 4px 10px var(--sh),-4px -4px 10px var(--hi);transition:transform .15s,box-shadow .15s}
+.icon:active{transform:scale(.94);box-shadow:inset 3px 3px 7px var(--sh),inset -3px -3px 7px var(--hi)}
+.ttl{text-align:center;min-width:0}
+.ttl .code{font-family:var(--mono);font-weight:700;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.01em}
+.ttl .meta{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sendchip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--muted);padding:3px 9px;border-radius:999px;background:var(--panel);box-shadow:0 1px 3px var(--sh)}
+.sendchip i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.sendchip.ok i{background:var(--ok);box-shadow:0 0 8px var(--ok)} .sendchip.wait i{background:var(--warn);animation:pulse 1.2s infinite} .sendchip.err i{background:var(--bad)}
+@keyframes pulse{50%{opacity:.3}}
+
+/* dial */
+.dial{position:relative;width:min(82vw,320px);max-width:100%;aspect-ratio:1;margin-top:6px;user-select:none;-webkit-user-select:none;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,var(--btn-2),var(--panel) 60%);box-shadow:12px 12px 28px var(--sh),-10px -10px 26px var(--hi),inset 0 0 0 1px var(--line)}
+.dial svg{position:absolute;inset:3%;width:94%;height:94%;transform:rotate(-90deg)}
+.dial .track{fill:none;stroke:var(--track);stroke-width:4}
+.dial .prog{fill:none;stroke:var(--accent);stroke-width:4;stroke-linecap:round;stroke-dasharray:289.03;stroke-dashoffset:289.03;transition:stroke-dashoffset .5s cubic-bezier(.2,.8,.2,1),stroke .4s;filter:drop-shadow(0 0 3px var(--accent))}
+.dial.ok .prog{stroke:var(--ok);filter:drop-shadow(0 0 4px var(--ok))} .dial.warn .prog{stroke:var(--warn);filter:drop-shadow(0 0 3px var(--warn))} .dial.bad .prog{stroke:var(--bad);filter:drop-shadow(0 0 4px var(--bad))}
+.dial .tick{stroke:var(--muted);stroke-width:.6;opacity:.45}
+.face{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.timer{font-family:var(--mono);font-weight:300;font-size:clamp(42px,14.5vw,62px);letter-spacing:-.05em;font-variant-numeric:tabular-nums;line-height:1}
+.dial.run .timer{animation:breathe 2s ease-in-out infinite}
+@keyframes breathe{50%{opacity:.86}}
+.count{font-family:var(--mono);font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.count .of{color:var(--muted)}
+.count.bump b{display:inline-block;animation:bump .35s ease-out}
+@keyframes bump{40%{transform:scale(1.35)}}
+.small{font-size:13px;color:var(--muted);font-weight:600;min-height:18px;text-align:center;max-width:70%}
+.dial.ok .count b,.dial.ok .lbl{color:var(--ok)} .dial.bad .count b,.dial.bad .lbl{color:var(--bad)} .dial.warn .count b{color:var(--warn)}
+.chips{display:flex;gap:6px;justify-content:center;min-height:26px;flex-wrap:wrap}
+.chip{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--accent);color:var(--accent-fg);animation:pop .25s ease-out}
+.chip.ev{background:var(--amber);color:var(--amber-fg)}
+@keyframes pop{from{transform:scale(.6);opacity:0}}
+
+/* embossed round buttons */
+.ctrls{width:100%;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;justify-items:center;margin-top:4px}
+.rb{--c1:var(--btn);--c2:var(--btn-2);--fgc:var(--btn-fg);position:relative;overflow:hidden;width:86px;height:86px;border-radius:50%;color:var(--fgc);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase;
+  background:linear-gradient(145deg,var(--c2),var(--c1));
+  box-shadow:7px 7px 16px var(--sh),-6px -6px 14px var(--hi),inset 2px 2px 2px rgba(255,255,255,.35),inset -3px -4px 8px rgba(0,0,0,.18);
+  transition:transform .12s,box-shadow .12s,filter .2s}
+.rb svg.i{width:28px;height:28px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.25))}
+.rb.go{--c1:var(--go);--c2:var(--go-2);--fgc:var(--go-fg)}
+.rb.lap{--c1:var(--accent);--c2:var(--accent-2);--fgc:var(--accent-fg)}
+.rb.stop{--c1:var(--stop);--c2:var(--stop-2);--fgc:#fff}
+.rb.sm{--c1:var(--amber);--c2:var(--amber-2);--fgc:var(--amber-fg);width:60px;height:60px}
+.rb.sm svg.i{width:26px;height:26px}
+.rb:active:not(:disabled){transform:scale(.95);box-shadow:inset 5px 5px 12px rgba(0,0,0,.28),inset -4px -4px 10px rgba(255,255,255,.2)}
+.rb:disabled{filter:grayscale(.85) opacity(.45);cursor:default}
+.rb .rip{position:absolute;border-radius:50%;background:rgba(255,255,255,.45);transform:scale(0);animation:rip .5s ease-out forwards;pointer-events:none}
+@keyframes rip{to{transform:scale(3);opacity:0}}
+
+/* laps */
+.laps{list-style:none;margin:8px 0 0;padding:0;width:100%;border-top:1px solid var(--line)}
+.laps li{display:grid;grid-template-columns:64px 1fr auto;gap:8px;align-items:center;padding:11px 4px;border-bottom:1px solid var(--line);min-height:46px}
+.laps li.new{animation:slidein .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes slidein{from{transform:translateY(-10px);opacity:0;background:var(--accent-soft)}}
+.laps li .n{color:var(--muted);font-size:14px;font-weight:600}
+.laps li .tag{font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.laps li .t{font-family:var(--mono);font-size:19px;font-variant-numeric:tabular-nums}
+.laps li.out .tag,.laps li.out .t{color:var(--bad)} .laps li.flag .tag,.laps li.flag .t{color:var(--warn)} .laps li.in .tag{color:var(--accent)}
+.laps li.cur .t{color:var(--muted)}
+.laps li.sep{display:block;padding:14px 4px 6px;min-height:0;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+
+/* sheets */
+.sheet{position:fixed;inset:0;background:rgba(8,10,25,.55);display:flex;align-items:flex-end;justify-content:center;z-index:20;animation:fade .2s}
+.sheet .card{background:var(--panel);width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));max-height:92vh;overflow:auto;display:flex;flex-direction:column;gap:10px;animation:up .28s cubic-bezier(.2,.8,.2,1);box-shadow:0 -10px 30px rgba(0,0,0,.25)}
+@keyframes fade{from{opacity:0}} @keyframes up{from{transform:translateY(40px);opacity:.4}}
+h2{font-family:var(--display);font-size:20px;margin:0;font-weight:700;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.sub{color:var(--muted);font-size:13px}
+.field label{display:block;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.choice{border:1px solid var(--line);border-radius:12px;padding:10px;text-align:left;font-weight:700;min-height:44px}
+.choice small{display:block;font-weight:500;color:var(--muted);font-size:12px;margin-top:2px}
+.choice.sel{border-color:var(--accent);background:var(--accent-soft)}
+.actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.btn{border-radius:12px;padding:11px 14px;font-weight:700;border:1px solid var(--line);background:var(--bg);min-height:44px;transition:transform .1s}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:linear-gradient(145deg,var(--accent-2),var(--accent));color:var(--accent-fg);border-color:transparent;box-shadow:0 4px 12px rgba(106,76,255,.35)}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+.menu{display:flex;flex-direction:column;gap:6px}
+.menu .btn{text-align:left;display:flex;align-items:center;gap:10px}
+.menu .btn svg.i{width:20px;height:20px;color:var(--accent)}
+a.btn{color:inherit;text-decoration:none}
+.warnbox{background:var(--warn-soft);border:1px solid var(--warn);border-radius:10px;padding:10px;font-size:14px}
+.okbox{background:var(--ok-soft);border:1px solid var(--ok);border-radius:10px;padding:10px;font-size:14px}
+.sugg{position:absolute;left:0;right:0;top:100%;z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 26px rgba(0,0,0,.25);max-height:240px;overflow:auto}
+.sugg button{display:block;width:100%;text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);min-height:44px}
+.sugg button:last-child{border-bottom:0}
+.sugg button b{font-family:var(--mono);font-size:15px}
+.sugg button small{display:block;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* esito */
+.verdict{border-radius:14px;padding:12px;font-weight:700;font-size:15px;background:var(--bg);border:1px solid var(--line)}
+.verdict.ok{background:var(--ok-soft);border-color:var(--ok)} .verdict.warn{background:var(--warn-soft);border-color:var(--warn)} .verdict.bad{background:var(--bad-soft);border-color:var(--bad)}
+.verdict small{display:block;font-weight:500;color:var(--muted);margin-top:2px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tile{border-radius:12px;padding:9px 11px;background:var(--bg);border:1px solid var(--line);min-width:0}
+.tile .k{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.tile .v{font-family:var(--mono);font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+.tile .v small{font-size:13px;font-weight:500;color:var(--muted);font-family:var(--body)}
+.tile.hl{border-color:var(--accent);background:var(--accent-soft)}
+canvas#chart{width:100%;height:90px;display:block;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:middle}
+.elist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.elist li{display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;font-size:14px}
+.elist li b{font-family:var(--mono)}
+.hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.hist li{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px}
+.hist li .meta{font-size:13px;color:var(--muted)}
+.sync{font-size:12px;color:var(--muted)} .sync.err{color:var(--bad)}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--bad-soft);border-radius:10px;padding:8px 10px;font-size:14px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 14px;border-radius:12px;font-weight:700;z-index:30;max-width:90vw;text-align:center;animation:up .25s}
+.flash{animation:flash 1s ease-out}
+@keyframes flash{0%{box-shadow:12px 12px 28px var(--sh),-10px -10px 26px var(--hi),0 0 0 0 var(--ok)}35%{box-shadow:12px 12px 28px var(--sh),-10px -10px 26px var(--hi),0 0 0 14px rgba(61,220,151,.35)}100%{box-shadow:12px 12px 28px var(--sh),-10px -10px 26px var(--hi),0 0 0 28px rgba(61,220,151,0)}}
+@media (max-width:360px){.rb{width:76px;height:76px}.rb.sm{width:54px;height:54px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app">
+  <header class="top">
+    <button class="icon" id="btnMenu" type="button" aria-label="Menu"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button>
+    <div class="ttl"><div class="code" id="hArt">Cronometro rilievi</div><div class="meta" id="hMeta">tocca + per un nuovo rilievo</div></div>
+    <button class="icon" id="btnSetup" type="button" aria-label="Nuovo rilievo"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  </header>
+
+  <div class="dial start" id="dial">
+    <svg viewBox="0 0 100 100" aria-hidden="true"><g id="ticks"></g><circle class="track" cx="50" cy="50" r="46"/><circle class="prog" id="ring" cx="50" cy="50" r="46"/></svg>
+    <div class="face">
+      <div class="small" id="fTop"></div>
+      <div class="timer" id="timer">0,00</div>
+      <div class="count" id="count"><b id="cN">0</b><span class="of" id="cNeed"> / 10</span></div>
+      <div class="small lbl" id="fBot">cicli</div>
+    </div>
+  </div>
+  <div class="chips"><span class="chip" id="elemBadge" hidden>elemento in corso</span><span class="chip ev" id="evBadge" hidden>anomalia sul ciclo</span><span class="sendchip" id="sendChip" hidden><i></i><span id="sendTxt"></span></span></div>
+
+  <div class="ctrls">
+    <button class="rb" id="btnStop" type="button" disabled><svg class="i" viewBox="0 0 24 24"><path d="M5 20v-7M11 20V5M17 20v-10M3 20h18"/></svg><span>Esito</span></button>
+    <button class="rb sm" id="btnEv" type="button" disabled aria-label="Anomalia"><svg class="i" viewBox="0 0 24 24"><path d="M12 3.5 2.5 20h19z" fill="currentColor" fill-opacity=".2"/><path d="M12 10v4.5M12 17.6v.1"/></svg></button>
+    <button class="rb go" id="btnLap" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z" fill="currentColor"/></svg><span id="lapLbl">Avvia</span></button>
+  </div>
+
+  <ul class="laps" id="cycles"></ul>
+</div>
+
+<!-- Esito -->
+<div class="sheet" id="esitoSheet" hidden>
+  <div class="card">
+    <h2><span id="esTitle">Esito</span><span class="sub" id="esSub"></span></h2>
+    <div class="verdict" id="esVerdict"></div>
+    <div class="tiles" id="esTiles"></div>
+    <div id="esOps"></div>
+    <canvas id="chart" width="600" height="90"></canvas>
+    <div class="legend"><span><i style="background:var(--muted)"></i>regolare</span><span><i style="background:var(--accent)"></i>nel ciclo</span><span><i style="background:var(--warn)"></i>estraneo / a frequenza</span><span><i style="background:var(--bad)"></i>rilavorazione</span></div>
+    <ul class="elist" id="elist"></ul>
+    <div class="sync" id="sync">Collegamento al registro in attesa…</div>
+    <div class="actions">
+      <button class="btn" type="button" id="esCopyT">Copia tempi</button>
+      <button class="btn primary" type="button" id="esCopy">Copia riepilogo</button>
+      <button class="btn" type="button" id="esClose">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<!-- Setup -->
+<div class="sheet" id="setup" hidden>
+  <form class="card" id="setupForm">
+    <h2>Nuovo rilievo</h2>
+    <div class="warnbox" id="setupWarn" hidden></div>
+    <div class="sub" id="tabStat">Tabella articoli in caricamento…</div><button class="btn" type="button" id="tabLoad" hidden style="margin:2px 0 8px">Carica la tabella articoli</button><input type="file" id="tabFile" accept=".json,application/json" hidden>
+    <div class="field" style="position:relative"><label for="fArt">Articolo</label><input id="fArt" placeholder="scrivi il codice" autocapitalize="characters" autocomplete="off" required>
+      <div class="sugg" id="artSugg" hidden></div>
+      <div class="sub" id="artInfo"></div>
+    </div>
+    <div class="field"><label for="fFase">Fase</label>
+      <select id="fFaseSel" hidden></select>
+      <input id="fFase" list="fasi" placeholder="es. Attacco Ago / Filo PGCL Bianco" required>
+      <datalist id="fasi">
+        <option value="Attacco Ago / Filo PGCL Bianco"><option value="Attacco Ago / Filo PGA Intrec"><option value="Attacco Ago / Filo PDO Bianco"><option value="Attacco Ago / Filo PGLA Bianco"><option value="Attacco Ago / Filo Doppio Ago"><option value="Attacco Ago / Filo Supramid US">
+        <option value="Avvolgimento FILBLOC"><option value="Avvolgimento Figura 8 45 cm"><option value="Avvolgimento Figura 8 60 cm"><option value="Avvolgimento Figura 8 70 cm"><option value="Avvolgimento Figura 8 75 cm"><option value="Avvolgimento Figura 8 90 cm"><option value="Avvolgimento Figura 8 150 cm"><option value="Avvolgimento AGO CANNULA"><option value="Avvolgimento doppio ago"><option value="Avvolgimento + Etichettatura"><option value="Avvolgimento MICRO"><option value="Inscatolamento e Etichettatura">
+      </datalist>
+    </div>
+    <div class="grid2">
+      <div class="field"><label for="fTc">TC vigente (min)</label><input id="fTc" inputmode="decimal" placeholder="es. 0,257"></div>
+      <div class="field"><label for="fUnit">Unità del TC</label><select id="fUnit"><option>pezzo</option><option>busta</option><option>cartoncino</option><option>pezzo (doppio ago)</option></select></div>
+    </div>
+    <div class="sub" id="tcInfo"></div>
+    <div class="grid2">
+      <div class="field"><label for="fOp">Operatrice</label><input id="fOp" placeholder="es. A208" autocapitalize="characters"></div>
+      <div class="field"><label for="fRitmo">Ritmo</label><select id="fRitmo"><option value="1">1,00 normale</option><option value="0.95">0,95 lento</option><option value="1.05">1,05 veloce</option><option value="1.1">1,10 veloce</option></select></div>
+    </div>
+    <details>
+      <summary class="sub" style="cursor:pointer;padding:6px 0">Maggiorazioni, scomposizione in elementi e note</summary>
+      <div class="field" style="margin-top:8px"><label for="fMagg">Maggiorazioni</label><select id="fMagg"><option value="0.13">13% generale</option><option value="0.16">16% micro (scelta da sola se la fase è Micro)</option></select></div>
+      <div class="field" style="margin-top:8px"><label for="fElems">Elementi del ciclo</label><input id="fElems" placeholder="vuoto = ciclo unico; es. presa, inserimento, crimpatura, prova"></div>
+      <div class="field" style="margin-top:8px"><label for="fNote">Ciclo osservato / note</label><textarea id="fNote" rows="2" placeholder="inizio → fine del ciclo, cosa comprende…"></textarea></div>
+    </details>
+    <div class="actions"><button class="btn" type="button" id="setupCancel">Annulla</button><button class="btn primary" type="submit" id="setupOk">Inizia</button></div>
+  </form>
+</div>
+
+<!-- Operatrice -->
+<div class="sheet" id="opSheet" hidden>
+  <form class="card" id="opForm">
+    <h2>Nuova operatrice</h2>
+    <div class="sub">I cicli successivi vanno in una nuova colonna; quelli già presi restano.</div>
+    <div class="grid2">
+      <div class="field"><label for="oCode">Codice operatrice</label><input id="oCode" placeholder="es. A307" autocapitalize="characters"></div>
+      <div class="field"><label for="oRitmo">Ritmo</label><select id="oRitmo"><option value="1">1,00 normale</option><option value="0.95">0,95 lento</option><option value="1.05">1,05 veloce</option><option value="1.1">1,10 veloce</option></select></div>
+    </div>
+    <div class="actions"><button class="btn" type="button" id="opCancel">Annulla</button><button class="btn primary" type="submit">Apri colonna</button></div>
+  </form>
+</div>
+
+<!-- Evento / modifica ciclo -->
+<div class="sheet" id="evSheet" hidden>
+  <div class="card">
+    <h2>Ciclo <span id="evN"></span></h2>
+    <div class="choices" id="evChoices">
+      <button class="choice" type="button" data-k="rilavorazione" data-s="out">Rilavorazione<small>fuori dai regolari, contata in frequenza</small></button>
+      <button class="choice" type="button" data-k="estraneo" data-s="out">Evento estraneo<small>escluso</small></button>
+      <button class="choice" type="button" data-k="frequenza" data-s="out">A frequenza<small>busta, vaschetta: escluso</small></button>
+      <button class="choice" type="button" data-k="ciclo" data-s="in">Parte del ciclo<small>resta nei regolari</small></button>
+    </div>
+    <div class="field"><label for="evNote">Cosa è successo</label><input id="evNote" placeholder="es. ago saltato alla prova di tenuta"></div>
+    <div class="field" id="evTimeWrap" hidden><label for="evTime">Tempo del ciclo (s)</label><input id="evTime" inputmode="decimal"></div>
+    <div class="actions">
+      <button class="btn danger" type="button" id="evDel" hidden>Elimina</button>
+      <button class="btn" type="button" id="evClear" hidden>Togli segnalazione</button>
+      <button class="btn" type="button" id="evCancel">Annulla</button>
+      <button class="btn primary" type="button" id="evOk">Segna</button>
+    </div>
+  </div>
+</div>
+
+<!-- Elemento a frequenza -->
+<div class="sheet" id="elemSheet" hidden>
+  <div class="card">
+    <h2>Elemento a frequenza</h2>
+    <div class="sub">Cronometrato a parte e tolto dal ciclo in corso; diventa secondi per pezzo.</div>
+    <div class="grid2">
+      <div class="field"><label for="elName">Elemento</label><input id="elName" list="elNames" placeholder="es. cambio busta fili"><datalist id="elNames"><option value="cambio busta fili"><option value="cambio spugnetta"><option value="sistemazione in vaschetta"><option value="controllo iniziale lotto"><option value="cambio mousse"></datalist></div>
+      <div class="field"><label for="elEvery">Ogni quanti pezzi</label><input id="elEvery" inputmode="numeric" placeholder="es. 100"></div>
+    </div>
+    <div id="elTimer" style="font-family:var(--mono);font-size:48px;font-weight:300;text-align:center;font-variant-numeric:tabular-nums">0,00</div>
+    <div class="actions">
+      <button class="btn" type="button" id="elCancel">Chiudi</button>
+      <button class="btn primary" type="button" id="elStart">Avvia elemento</button>
+      <button class="btn primary" type="button" id="elStop" hidden>Fine elemento</button>
+    </div>
+  </div>
+</div>
+
+<!-- Menu -->
+<div class="sheet" id="menuSheet" hidden>
+  <div class="card">
+    <h2>Menu</h2>
+    <div class="menu">
+      <button class="btn" type="button" id="mSend"><svg class="i" viewBox="0 0 24 24"><path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19 10a4 4 0 0 1-1 8"/><path d="M12 12v8M9 15l3-3 3 3"/></svg>Invio automatico a Claude</button>
+      <button class="btn" type="button" id="mEsito"><svg class="i" viewBox="0 0 24 24"><path d="M5 20v-7M11 20V5M17 20v-10M3 20h18"/></svg>Esito e grafico</button>
+      <button class="btn" type="button" id="mElem">Elemento a frequenza</button>
+      <button class="btn" type="button" id="mOp">Nuova operatrice</button>
+      <button class="btn" type="button" id="mUndo">Annulla ultimo giro</button>
+      <button class="btn" type="button" id="mHist">Rilievi salvati</button>
+      <button class="btn" type="button" id="mTab">Tabella articoli</button>
+      <button class="btn" type="button" id="mTheme">Tema: automatico</button>
+      <a class="btn" id="mGuide" href="guida.html" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19"/></svg>Guida</a>
+    </div>
+    <div class="sub" id="wakeNote" hidden>Blocco dello schermo non ottenuto: tieni lo schermo acceso tu (i tempi restano corretti).</div>
+    <div class="actions"><button class="btn" type="button" id="menuClose">Chiudi</button></div>
+  </div>
+</div>
+
+<!-- Invio automatico -->
+<div class="sheet" id="sendSheet" hidden>
+  <form class="card" id="sendForm">
+    <h2>Invio automatico a Claude</h2>
+    <div class="sub">Ogni rilievo chiuso con Stop viene salvato come file nel tuo archivio GitHub privato. Claude lo legge da lì: non devi più copiare i tempi. Se manca la rete, l'invio riparte da solo appena torna.</div>
+    <div class="field"><label for="gRepo">Archivio (utente/nome)</label><input id="gRepo" placeholder="es. flaguzzi/rilievi-dati" autocapitalize="off" autocomplete="off" spellcheck="false"></div>
+    <div class="field"><label for="gToken">Chiave di accesso (token GitHub)</label><input id="gToken" type="password" placeholder="github_pat_…" autocapitalize="off" autocomplete="off" spellcheck="false"></div>
+    <div class="sub">La chiave resta solo su questo telefono. Creala con accesso al solo archivio dei rilievi (permesso «Contents: read and write»). I passaggi sono nella Guida.</div>
+    <div id="gMsg"></div>
+    <div class="actions">
+      <button class="btn danger" type="button" id="gOff">Disattiva</button>
+      <button class="btn" type="button" id="gCancel">Chiudi</button>
+      <button class="btn primary" type="submit" id="gSave">Prova e salva</button>
+    </div>
+  </form>
+</div>
+
+<!-- Storico -->
+<div class="sheet" id="histSheet" hidden>
+  <div class="card">
+    <h2>Rilievi salvati</h2>
+    <div class="sub" id="histSub"></div>
+    <ul class="hist" id="histList"></ul>
+    <div class="actions"><button class="btn" type="button" id="histClose">Chiudi</button></div>
+  </div>
+</div>
+
+
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const Z=1.96, E=0.10, MIN_LAP=0.8, CIRC=289.03;
+const KEY='cronometro_rilievi_v2';
+let S=null, running=false, cycleStart=0, raf=0, pendingEv=null, parts=[], wake=null, wakeFailed=false, wasOk=false;
+let db=null, histCache=[], elRun=null, elRaf=0, justLapped=false;
+const ICON={play:'<svg class="i" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z" fill="currentColor"/></svg>',flag:'<svg class="i" viewBox="0 0 24 24"><path d="M6 21V4"/><path d="M6 4h11l-2.5 4L17 12H6" fill="currentColor" fill-opacity=".25"/></svg>',stop:'<svg class="i" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg>',chart:'<svg class="i" viewBox="0 0 24 24"><path d="M5 20v-7M11 20V5M17 20v-10M3 20h18"/></svg>'};
+
+/* ---------- modello ---------- */
+function newR(f){ return {v:2,id:'r'+Date.now().toString(36),articolo:f.articolo,descrizione:f.descrizione||'',fase:f.fase,tcFonte:f.tcFonte||'',codiceSistema:f.codiceSistema||'',unita:f.unita,tc:f.tc||null,magg:f.magg||0.13,note:f.note||'',elementiCiclo:f.elementiCiclo||[],
+  data:new Date().toISOString().slice(0,10),oraInizio:new Date().toTimeString().slice(0,5),operatrici:[{code:f.operatrice||'',ritmo:f.ritmo||1,cicli:[]}],cur:0,elementi:[],stato:'aperto',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}; }
+function migrate(r){ if(!r) return null; if(r.v===2) return r; return {v:2,id:r.id,articolo:r.articolo,fase:r.fase,lotto:'',unita:r.unita,tc:r.tc,magg:0.13,note:r.note||'',elementiCiclo:[],data:r.data,oraInizio:'',operatrici:[{code:r.operatrice||'',ritmo:r.ritmo||1,cicli:r.cicli||[]}],cur:0,elementi:[],stato:r.stato||'aperto',createdAt:r.createdAt,updatedAt:r.updatedAt}; }
+function col(){ return S.operatrici[S.cur]; }
+function allCycles(){ const out=[]; S.operatrici.forEach((o,oi)=>o.cicli.forEach((c,ci)=>out.push({o:oi,i:ci,c}))); return out; }
+function loadLocal(){ try{ const j=localStorage.getItem(KEY); if(j){ const o=JSON.parse(j); S=migrate(o.cur); histCache=(o.hist||[]).map(migrate); } else { const j1=localStorage.getItem('cronometro_rilievi_v1'); if(j1){ const o=JSON.parse(j1); S=migrate(o.cur); histCache=(o.hist||[]).map(migrate); } } }catch(e){} }
+function saveLocal(){ try{ localStorage.setItem(KEY, JSON.stringify({cur:S, hist:histCache.slice(0,60)})); }catch(e){} }
+function touch(){ S.updatedAt=new Date().toISOString(); if(S.gh&&S.gh.st==='ok') S.gh.st='mod'; saveLocal(); render(); queueSave(); }
+
+/* ---------- statistiche ---------- */
+function colStats(o){
+  const reg=o.cicli.filter(c=>!c.ev||c.ev.s==='in').map(c=>c.t); const n=reg.length; if(!n) return {n:0};
+  const m=reg.reduce((a,b)=>a+b,0)/n; const sd=n>1?Math.sqrt(reg.reduce((a,b)=>a+(b-m)*(b-m),0)/(n-1)):0;
+  const cv=m?sd/m:0, rx=m?(Math.max(...reg)-Math.min(...reg))/m:0; const need=n>1?Math.ceil(Math.pow(Z*cv/E,2)):null;
+  return {n,m,sd,cv,rx,need,norm:m*(o.ritmo||1)};
+}
+function verdict(st){
+  if(!st.n||st.n<5) return {cls:'start',need:10,miss:10-(st.n||0),txt:'Servono almeno 5 cicli per stimare il numero necessario'};
+  const need=Math.max(st.need,10), miss=Math.max(0,need-st.n);
+  if(st.rx>1) return {cls:'bad',need,miss,txt:'Escursione oltre la media: separa l’evento con «!» e contalo'};
+  if(!miss) return {cls:'ok',need,miss,txt:'Campione sufficiente per ±10% al 95%'};
+  return {cls:'warn',need,miss,txt:'Prosegui: mancano '+miss+' cicli'};
+}
+function global(){
+  const cols=S.operatrici.map(colStats).filter(s=>s.n);
+  const normMean=cols.length?cols.reduce((a,s)=>a+s.norm,0)/cols.length:0;    // media dei tempi normali per operatrice (come la scheda)
+  const elPerPz=S.elementi.reduce((a,e)=>a+(e.media&&e.ogni?e.media/e.ogni:0),0);
+  const all=allCycles(); const N=all.length; const ril=all.filter(x=>x.c.ev&&x.c.ev.k==='rilavorazione');
+  // durata extra di ogni rilavorazione = tempo del ciclo rifatto − media grezza dei regolari della stessa operatrice (come nelle schede)
+  const extras=ril.map(x=>{ const s=colStats(S.operatrici[x.o]); return s.n?Math.max(0,x.c.t-s.m):0; });
+  const p=N?ril.length/N:0; const extra=extras.length?extras.reduce((a,b)=>a+b,0)/extras.length:0;
+  const base=(normMean+elPerPz)/60; const std=base*(1+S.magg); const stdR=(base+p*extra/60)*(1+S.magg);
+  return {cols,normMean,elPerPz,N,k:ril.length,p,extra,std,stdR};
+}
+function fmtS(x){ return x.toFixed(2).replace('.',','); } function fmt3(x){ return x.toFixed(3).replace('.',','); }
+function fmtT(x){ if(x<60) return fmtS(x); const m=Math.floor(x/60); const s=x-m*60; return m+':'+(s<10?'0':'')+fmtS(s); }
+function label(k){ return {rilavorazione:'rilavorazione',estraneo:'estraneo',frequenza:'a frequenza',ciclo:'nel ciclo'}[k]||k; }
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function pct(x){ return Math.round(x*100)+'%'; }
+
+/* ---------- render ---------- */
+function render(){
+  const has=!!S, o=has?col():null;
+  $('hArt').textContent=has?S.articolo:'Cronometro rilievi';
+  $('hMeta').textContent=has?[S.fase,o.code?'op. '+o.code+(S.operatrici.length>1?' ('+(S.cur+1)+'/'+S.operatrici.length+')':''):''].filter(Boolean).join(' · '):'tocca + per un nuovo rilievo';
+  const st=has?colStats(o):{n:0}; const v=verdict(st);
+  const dial=$('dial'); const fl=dial.classList.contains('flash'); dial.className='dial '+v.cls+(running?' run':'')+(fl?' flash':'');
+  if(String(st.n||0)!==$('cN').textContent){ $('cN').textContent=st.n||0; const ce=$('count'); ce.classList.remove('bump'); void ce.offsetWidth; ce.classList.add('bump'); } $('cNeed').textContent=' / '+v.need;
+  $('ring').style.strokeDashoffset=CIRC*(1-Math.min(1,(st.n||0)/v.need));
+  const nextEl=has&&running&&S.elementiCiclo.length?S.elementiCiclo[parts.length]:null;
+  $('fTop').textContent=nextEl?'fine «'+nextEl+'» ('+(parts.length+1)+'/'+S.elementiCiclo.length+')':(st.n>=2?'CV '+pct(st.cv)+' · media '+fmtS(st.m):'');
+  $('fBot').textContent=!has?'':v.cls==='ok'?'sufficiente':v.cls==='bad'?'separa l’evento':st.n>=5?'mancano '+v.miss:'cicli';
+  if(v.cls==='ok'&&!wasOk&&running){ dial.classList.remove('flash'); void dial.offsetWidth; dial.classList.add('flash'); }
+  wasOk=v.cls==='ok';
+  // tasti
+  const ncyc=has?allCycles().length:0;
+  const lap=$('btnLap'); lap.className='rb '+(running?'lap':'go'); lap.innerHTML=(running?ICON.flag:ICON.play)+'<span>'+(running?'Giro':(ncyc?'Riprendi':'Avvia'))+'</span>';
+  const stop=$('btnStop'); stop.className='rb '+(running?'stop':''); stop.innerHTML=(running?ICON.stop:ICON.chart)+'<span>'+(running?'Stop':'Esito')+'</span>'; stop.disabled=!has||(!running&&!ncyc);
+  renderSend();
+  $('btnEv').disabled=!running;
+  $('evBadge').hidden=!pendingEv; $('elemBadge').hidden=!elRun;
+  $('wakeNote').hidden=!wakeFailed;
+  // giri (più recente in alto, come un cronometro)
+  const ul=$('cycles'); ul.innerHTML='';
+  if(has){
+    const multi=S.operatrici.length>1;
+    for(let oi=S.operatrici.length-1;oi>=0;oi--){
+      const oc=S.operatrici[oi];
+      if(multi&&(oc.cicli.length||oi===S.cur)){ const sp=document.createElement('li'); sp.className='sep'; sp.textContent=(oc.code||'Operatrice '+(oi+1))+' · ritmo '+String(oc.ritmo).replace('.',','); ul.appendChild(sp); }
+      if(running&&oi===S.cur){ const li=document.createElement('li'); li.className='cur'; li.innerHTML='<span class="n">Giro '+(o.cicli.length+1)+'</span><span class="tag">'+(pendingEv?label(pendingEv.k):'')+'</span><span class="t" id="curT">'+fmtT((performance.now()-cycleStart)/1000)+'</span>'; ul.appendChild(li); }
+      for(let i=oc.cicli.length-1;i>=0;i--){ const c=oc.cicli[i]; const li=document.createElement('li');
+        if(c.ev) li.className=c.ev.k==='rilavorazione'?'out':c.ev.s==='in'?'in':'flag';
+        if(justLapped&&oi===S.cur&&i===oc.cicli.length-1) li.classList.add('new');
+        li.innerHTML='<span class="n">Giro '+(i+1)+'</span><span class="tag">'+(c.ev?esc(label(c.ev.k)+(c.ev.note?' · '+c.ev.note:'')):'')+'</span><span class="t">'+fmtT(c.t)+'</span>';
+        li.addEventListener('click',()=>openEv(oi,i)); ul.appendChild(li); }
+    }
+  }
+  justLapped=false;
+}
+function drawChart(){
+  const cv=$('chart'); const W=cv.width=(cv.clientWidth||300)*2, H=cv.height=180; const ctx=cv.getContext('2d'); ctx.clearRect(0,0,W,H);
+  if(!S) return; const all=allCycles(); if(!all.length) return;
+  const css=getComputedStyle(document.documentElement); const colors={reg:css.getPropertyValue('--muted').trim(),in:css.getPropertyValue('--accent').trim(),flag:css.getPropertyValue('--warn').trim(),out:css.getPropertyValue('--bad').trim(),line:css.getPropertyValue('--fg').trim()};
+  const vals=all.map(x=>x.c.t); const max=Math.max(...vals)*1.1; const n=vals.length; const bw=Math.max(3,Math.min(24,(W-20)/n-2));
+  const reg=all.filter(x=>!x.c.ev||x.c.ev.s==='in').map(x=>x.c.t); const m=reg.length?reg.reduce((a,b)=>a+b,0)/reg.length:0;
+  all.forEach((x,i)=>{ const h=(x.c.t/max)*(H-14); const k=x.c.ev?(x.c.ev.k==='rilavorazione'?'out':x.c.ev.s==='in'?'in':'flag'):'reg'; ctx.fillStyle=colors[k]; ctx.fillRect(10+i*(bw+2),H-h-4,bw,h); });
+  if(m){ const y=H-4-(m/max)*(H-14); ctx.strokeStyle=colors.line; ctx.setLineDash([6,6]); ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(6,y); ctx.lineTo(W-6,y); ctx.stroke(); ctx.setLineDash([]);
+    const lbl='media '+fmtS(m)+' s'; ctx.font='bold 22px '+css.getPropertyValue('--mono'); const tw=ctx.measureText(lbl).width; const ly=Math.max(26,y-8);
+    ctx.fillStyle=css.getPropertyValue('--panel').trim(); ctx.globalAlpha=.85; ctx.fillRect(W-12-tw,ly-22,tw+8,28); ctx.globalAlpha=1; ctx.fillStyle=colors.line; ctx.fillText(lbl,W-8-tw,ly); }
+}
+
+/* ---------- esito ---------- */
+function tile(k,v,hl){ return '<div class="tile'+(hl?' hl':'')+'"><div class="k">'+k+'</div><div class="v">'+v+'</div></div>'; }
+function openEsito(){
+  if(!S) return; const o=col(); const st=colStats(o); const v=verdict(st); const g=global();
+  $('esTitle').textContent=S.articolo; $('esSub').textContent=S.stato==='chiuso'?'chiuso':'aperto';
+  const vb=$('esVerdict'); vb.className='verdict '+(v.cls==='start'?'':v.cls);
+  vb.innerHTML=esc(v.txt)+'<small>'+(st.n>=5?'n = (1,96 · CV / 0,10)² con CV '+pct(st.cv)+(st.n>=5&&v.cls!=='ok'?'; per ±5% servirebbero '+Math.ceil(Math.pow(Z*st.cv/0.05,2)):''):'formula della tesi, dopo 5 cicli')+(S.operatrici.length>1?' · operatrice corrente':'')+'</small>';
+  let t=tile('Cicli regolari',(st.n||0)+'<small> / '+v.need+'</small>')+tile('Media · CV',st.n?fmtS(st.m)+' s<small> '+pct(st.cv)+'</small>':'—')+tile('Escursione / media',st.n>1?st.rx.toFixed(2).replace('.',','):'—');
+  t+=tile('Standard',g.cols.length?fmt3(g.std)+'<small> min</small>':'—',true);
+  if(g.k) t+=tile('Con rilavorazione',fmt3(g.stdR)+'<small> min · '+g.k+'/'+g.N+'</small>',true);
+  if(S.tc&&g.cols.length) t+=tile('Vigente',String(S.tc).replace('.',',')+'<small> '+((S.tc/g.std-1)*100>=0?'+':'')+((S.tc/g.std-1)*100).toFixed(0)+'%</small>');
+  $('esTiles').innerHTML=t;
+  $('esOps').innerHTML=S.operatrici.length>1?'<div class="sub">'+S.operatrici.map((oc,i)=>{ const s=colStats(oc); return (oc.code||'Op.'+(i+1))+': '+(s.n?s.n+' cicli, media '+fmtS(s.m)+' s, CV '+pct(s.cv):'nessun ciclo'); }).join(' · ')+' · standard = media dei tempi normali</div>':'';
+  const el=$('elist'); el.innerHTML='';
+  S.elementi.forEach(e=>{ const li=document.createElement('li'); li.innerHTML='<span>'+esc(e.nome)+' <span class="sub">ogni '+e.ogni+' pz · '+e.tempi.length+'×</span></span><span><b>'+fmtS(e.media)+' s</b> <span class="sub">= '+(e.media/e.ogni).toFixed(2).replace('.',',')+' s/pz</span></span>'; el.appendChild(li); });
+  $('esitoSheet').hidden=false; drawChart();
+  const cfg=ghCfg(); if(cfg) $('sync').textContent=S.gh&&S.gh.st==='ok'?'Inviato a Claude ('+cfg.repo+').':'Invio a Claude in corso o in attesa di rete.';
+}
+$('esClose').addEventListener('click',()=>{ $('esitoSheet').hidden=true; });
+$('esCopy').addEventListener('click',()=>{ if(S&&allCycles().length) copy(summary()); });
+$('esCopyT').addEventListener('click',()=>{ if(S&&allCycles().length) copy(times()); });
+
+/* ---------- cronometro ---------- */
+function tick(){ if(!running) return; const t=(performance.now()-cycleStart)/1000; $('timer').textContent=fmtT(t); const c=$('curT'); if(c) c.textContent=fmtT(t); raf=requestAnimationFrame(tick); }
+async function start(){ running=true; cycleStart=performance.now(); parts=[]; if(S.stato==='chiuso'){ S.stato='aperto'; saveLocal(); } render(); tick(); try{ wake=await navigator.wakeLock.request('screen'); wakeFailed=false; }catch(e){ wakeFailed=true; } render(); }
+function lap(){
+  const el=(performance.now()-cycleStart)/1000;
+  if(el<MIN_LAP){ toast('Tocco doppio ignorato'); return; }
+  const t=Math.round(el*100)/100; cycleStart=performance.now();
+  if(S.elementiCiclo.length){ parts.push(t); if(parts.length<S.elementiCiclo.length){ saveLocal(); render(); return; } }
+  const c={t:S.elementiCiclo.length?Math.round(parts.reduce((a,b)=>a+b,0)*100)/100:t, ev:pendingEv||null, at:new Date().toISOString()};
+  if(S.elementiCiclo.length) c.parts=parts.slice();
+  parts=[]; pendingEv=null; col().cicli.push(c); justLapped=true; touch();
+}
+function halt(){ running=false; cancelAnimationFrame(raf); parts=[]; pendingEv=null; if(wake){ try{ wake.release(); }catch(e){} wake=null; } $('timer').textContent='0,00'; }
+function stop(){ halt(); if(S){ S.stato='chiuso'; S.oraFine=new Date().toTimeString().slice(0,5); touch(); persist(); openEsito(); ghFlush(); } }
+document.querySelectorAll('.rb').forEach(b=>b.addEventListener('pointerdown',e=>{ if(b.disabled) return; const r=b.getBoundingClientRect(); const s=document.createElement('span'); s.className='rip'; const d=Math.max(r.width,r.height); s.style.cssText='width:'+d+'px;height:'+d+'px;left:'+(e.clientX-r.left-d/2)+'px;top:'+(e.clientY-r.top-d/2)+'px'; b.appendChild(s); setTimeout(()=>s.remove(),520); }));
+$('btnLap').addEventListener('click',()=>{ if(!S){ openSetup(); return; } if(!running) start(); else lap(); });
+$('dial').addEventListener('click',()=>{ if(running) lap(); });
+$('btnStop').addEventListener('click',()=>{ if(running) stop(); else openEsito(); });
+
+/* ---------- anomalie / modifica ciclo ---------- */
+let evSel=null, editRef=null;
+function openEv(oi,ci){
+  editRef=(oi===undefined)?null:{oi,ci}; const c=editRef?S.operatrici[oi].cicli[ci]:null;
+  $('evN').textContent=editRef?(ci+1)+' · '+fmtT(c.t)+' s':(col().cicli.length+1)+' (in corso)';
+  evSel=c&&c.ev?c.ev.k:(pendingEv?pendingEv.k:'rilavorazione'); $('evNote').value=c&&c.ev?c.ev.note||'':(pendingEv?pendingEv.note:'');
+  $('evTimeWrap').hidden=!editRef; if(editRef) $('evTime').value=fmtS(c.t);
+  $('evClear').hidden=!((c&&c.ev)||(!editRef&&pendingEv)); $('evDel').hidden=!editRef;
+  paint(); $('evSheet').hidden=false;
+}
+function paint(){ document.querySelectorAll('#evChoices .choice').forEach(b=>b.classList.toggle('sel',b.dataset.k===evSel)); }
+document.querySelectorAll('#evChoices .choice').forEach(b=>b.addEventListener('click',()=>{ evSel=b.dataset.k; paint(); }));
+$('btnEv').addEventListener('click',()=>openEv());
+$('evCancel').addEventListener('click',()=>{ $('evSheet').hidden=true; });
+$('evClear').addEventListener('click',()=>{ if(editRef){ S.operatrici[editRef.oi].cicli[editRef.ci].ev=null; touch(); } else { pendingEv=null; render(); } $('evSheet').hidden=true; });
+$('evDel').addEventListener('click',()=>{ if(editRef){ S.operatrici[editRef.oi].cicli.splice(editRef.ci,1); touch(); toast('Ciclo eliminato'); } $('evSheet').hidden=true; });
+$('evOk').addEventListener('click',()=>{
+  const s=document.querySelector('#evChoices .choice[data-k="'+evSel+'"]').dataset.s; const ev={k:evSel,s,note:$('evNote').value.trim()};
+  if(editRef){ const c=S.operatrici[editRef.oi].cicli[editRef.ci]; c.ev=ev; const nt=parseFloat(($('evTime').value||'').replace(',','.')); if(nt>0) c.t=Math.round(nt*100)/100; touch(); }
+  else { pendingEv=ev; render(); }
+  $('evSheet').hidden=true;
+});
+
+/* ---------- elementi a frequenza ---------- */
+function elTick(){ if(!elRun) return; $('elTimer').textContent=fmtT((performance.now()-elRun.start)/1000); elRaf=requestAnimationFrame(elTick); }
+function openElem(){ if(!S) return; $('elemSheet').hidden=false; $('elStart').hidden=!!elRun; $('elStop').hidden=!elRun; if(elRun){ $('elName').value=elRun.nome; $('elEvery').value=elRun.ogni||''; elTick(); } }
+$('elemBadge').addEventListener('click',openElem);
+$('elCancel').addEventListener('click',()=>{ $('elemSheet').hidden=true; });
+$('elStart').addEventListener('click',()=>{ const nome=$('elName').value.trim()||'elemento'; const ogni=parseInt($('elEvery').value,10)||0; elRun={nome,ogni,start:performance.now()}; $('elStart').hidden=true; $('elStop').hidden=false; elTick(); render(); });
+$('elStop').addEventListener('click',()=>{
+  if(!elRun) return; const dur=(performance.now()-elRun.start)/1000; cancelAnimationFrame(elRaf);
+  if(running) cycleStart+=dur*1000;                      // l'elemento esce dal ciclo in corso
+  const ogni=parseInt($('elEvery').value,10)||elRun.ogni||1; const nome=$('elName').value.trim()||elRun.nome;
+  let e=S.elementi.find(x=>x.nome===nome); if(!e){ e={nome,ogni,tempi:[],media:0}; S.elementi.push(e); }
+  e.ogni=ogni; e.tempi.push(Math.round(dur*100)/100); e.media=e.tempi.reduce((a,b)=>a+b,0)/e.tempi.length;
+  elRun=null; $('elTimer').textContent='0,00'; $('elemSheet').hidden=true; touch(); toast(nome+': '+fmtS(dur)+' s');
+});
+
+/* ---------- operatrici ---------- */
+$('opCancel').addEventListener('click',()=>{ $('opSheet').hidden=true; });
+$('opForm').addEventListener('submit',e=>{ e.preventDefault(); if(running) halt(); S.operatrici.push({code:$('oCode').value.trim().toUpperCase(),ritmo:parseFloat($('oRitmo').value)||1,cicli:[]}); S.cur=S.operatrici.length-1; $('oCode').value=''; $('opSheet').hidden=true; touch(); toast('Nuova colonna: premi Avvia'); });
+
+/* ---------- tabella articoli (consuntivo Sage/NetPro + aggiornamenti a sistema) ---------- */
+let TC=null, TCkeys=[], artSel=null, NORM={};
+const nrm=s=>s.toUpperCase().replace(/[^A-Z0-9]/g,'');   // ignora trattini, spazi, barre
+function ym(v){ return v?String(v%100).padStart(2,'0')+'/20'+String(Math.floor(v/100)).padStart(2,'0'):''; }
+function tcLookup(code){
+  if(!TC) return null; const up=code.toUpperCase().trim(); if(!up) return null;
+  const hasTc=c=>TC.art[c]&&TC.art[c].f.some(x=>x[1]!==null);
+  if(hasTc(up)) return {code:up,usato:up,e:TC.art[up]};
+  let base=up, prev; do{ prev=base; base=base.replace(/(\/U|_E|_A)$/,''); }while(base!==prev);   // varianti commerciali: stesso ciclo
+  const cands=[base,base+'/U',base+'_E',base+'_A',base+'_A/U',base+'_E/U'].filter(c=>c!==up);
+  for(const c of cands){ if(hasTc(c)) return {code:up,usato:c,e:TC.art[c],twin:true,d:(TC.art[up]&&TC.art[up].d)||TC.art[c].d}; }
+  if(TC.art[up]) return {code:up,usato:up,e:TC.art[up]};   // solo fasi dalla griglia o solo descrizione
+  if(!(nrm(up) in NORM) && !(nrm(base) in NORM)){ for(const sfx of ['E','A','U','AU','EU']){ if(nrm(base)+sfx in NORM){ const k=NORM[nrm(base)+sfx]; if(k!==up){ const r=tcLookup(k); if(r){ r.code=up; r.twin=true; if(r.usato===k||!r.usato) r.usato=k; } return r; } } } return null; }
+  const k=NORM[nrm(up)]||NORM[nrm(base)]; if(k&&k!==up){ const r=tcLookup(k); if(r){ r.code=up; r.twin=true; } return r; }
+  return null;
+}
+function fillFromArt(r){
+  artSel=r; const sel=$('fFaseSel'), inp=$('fFase'); $('tcInfo').textContent=''; delete $('tcInfo').dataset.f; $('fTc').value='';
+  if(!r){ const q=$('fArt').value.trim(); $('artInfo').textContent=TC&&q.length>=4?'Codice non in tabella: scrivi fase e TC a mano, puoi misurare lo stesso.':''; sel.hidden=true; inp.hidden=false; inp.required=true; return; }
+  const d=r.d||r.e.d||''; let info=d?d:'';
+  if(r.twin) info=(info?info+' · ':'')+'dati di '+r.usato+' (stesso ciclo)';
+  if(!r.e.f.length) info=(info?info+' · ':'')+'nessuna fase nel consuntivo: compila a mano';
+  $('artInfo').textContent=info;
+  if(!r.e.f.length){ sel.hidden=true; inp.hidden=false; inp.required=true; return; }
+  const rows=r.e.f.slice().sort((a,b)=>a[2]-b[2]||a[0]-b[0]);
+  sel.innerHTML='<option value="">scegli la fase…</option>'+rows.map((x,i)=>'<option value="'+i+'">'+esc(TC.fasi[x[0]])+' · '+(x[1]===null?'TC da inserire':String(x[1]).replace('.',',')+' min')+'</option>').join('')+'<option value="altra">altra fase (scrivi)</option>';
+  sel._rows=rows; sel.hidden=false; inp.hidden=true; inp.required=false; inp.value=''; sel.required=true;
+  if(rows.length===1){ sel.value='0'; sel.dispatchEvent(new Event('change')); }
+}
+$('fFaseSel').addEventListener('change',()=>{
+  const sel=$('fFaseSel'), inp=$('fFase'); $('tcInfo').textContent='';
+  if(sel.value==='altra'){ inp.hidden=false; inp.required=true; sel.required=false; $('fTc').value=''; setTimeout(()=>inp.focus(),50); return; }
+  inp.hidden=true; inp.required=false; sel.required=true;
+  if(sel.value===''){ $('fTc').value=''; return; }
+  const x=sel._rows[+sel.value]; inp.value=TC.fasi[x[0]]; $('fTc').value=x[1]===null?'':String(x[1]).replace('.',',');
+  $('fMagg').value=/micro/i.test(TC.fasi[x[0]])?'0.16':'0.13';
+  const fonte=x[1]===null?'Fase dalla griglia di produzione; codice non presente nel consuntivo al '+TC.estratto.split('-').reverse().join('/')+': inserisci il TC da Sage':x[5]?'TC aggiornato a sistema il '+TC.aggiornamenti.split('-').reverse().join('/')+(x[3]?' (prima '+x[3]+' esecuzioni nel consuntivo)':' (nessuna esecuzione nel consuntivo)'):'TC dal consuntivo al '+TC.estratto.split('-').reverse().join('/')+': '+x[3]+' esecuzioni, ultima '+ym(x[4]);
+  $('tcInfo').dataset.f=fonte; $('tcInfo').textContent=fonte+(x[5]||x[1]===null?'':'. Se l’hai cambiato a sistema dopo, correggi qui.'); if(x[1]===null) setTimeout(()=>$('fTc').focus(),50);
+});
+function showSugg(q){
+  const box=$('artSugg'); const up=q.toUpperCase().trim(); if(!TC||up.length<2){ box.hidden=true; return; }
+  let hits=[]; for(const k of TCkeys){ if(k.startsWith(up)){ hits.push(k); if(hits.length>=8) break; } }
+  if(hits.length<8){ const nu=nrm(up); for(const k of TCkeys){ if(!hits.includes(k)&&nrm(k).startsWith(nu)){ hits.push(k); if(hits.length>=8) break; } } }
+  if(hits.length<8) for(const k of TCkeys){ if(!hits.includes(k)&&k.includes(up)){ hits.push(k); if(hits.length>=8) break; } }
+  if(!hits.length||(hits.length===1&&hits[0]===up)){ box.hidden=true; return; }
+  box.innerHTML=hits.map(k=>'<button type="button" data-k="'+esc(k)+'"><b>'+esc(k)+'</b><small>'+esc(TC.art[k].d||(TC.art[k].f.length+' fasi'))+'</small></button>').join(''); box.hidden=false;
+}
+$('fArt').addEventListener('input',()=>{ showSugg($('fArt').value); const r=tcLookup($('fArt').value); if(!artSel||!r||r.code!==artSel.code) fillFromArt(r); });
+$('fArt').addEventListener('blur',()=>setTimeout(()=>{ $('artSugg').hidden=true; },200));
+$('artSugg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; $('fArt').value=b.dataset.k; $('artSugg').hidden=true; fillFromArt(tcLookup(b.dataset.k)); if(!$('fFaseSel').hidden) setTimeout(()=>$('fFaseSel').focus(),50); });
+/* La tabella articoli NON è nel sito: si carica una volta dal file sul telefono e resta salvata qui (IndexedDB). */
+function idb(){ return new Promise((ok,ko)=>{ const r=indexedDB.open('cronometro-tabella',1); r.onupgradeneeded=()=>r.result.createObjectStore('kv'); r.onsuccess=()=>ok(r.result); r.onerror=()=>ko(r.error); }); }
+async function idbGet(k){ const d=await idb(); return new Promise((ok,ko)=>{ const q=d.transaction('kv').objectStore('kv').get(k); q.onsuccess=()=>ok(q.result); q.onerror=()=>ko(q.error); }); }
+async function idbSet(k,v){ const d=await idb(); return new Promise((ok,ko)=>{ const t=d.transaction('kv','readwrite'); t.objectStore('kv').put(v,k); t.oncomplete=()=>ok(); t.onerror=()=>ko(t.error); }); }
+async function idbDel(k){ const d=await idb(); return new Promise((ok,ko)=>{ const t=d.transaction('kv','readwrite'); t.objectStore('kv').delete(k); t.oncomplete=()=>ok(); t.onerror=()=>ko(t.error); }); }
+function useTab(txt){
+  const t=JSON.parse(txt); if(!t||!t.art||!t.fasi) throw new Error('formato');
+  TC=t; TCkeys=Object.keys(TC.art).sort(); for(const k in NORM) delete NORM[k]; for(const k of TCkeys){ const n=nrm(k); if(!(n in NORM)) NORM[n]=k; }
+  $('tabStat').textContent=TCkeys.length.toLocaleString('it-IT')+' codici'+(TC.estratto?' · consuntivo al '+TC.estratto.split('-').reverse().join('/'):'')+(TC.aggiornamenti?' · aggiornamenti al '+TC.aggiornamenti.split('-').reverse().join('/'):'');
+  $('tabLoad').hidden=true; $('mTab').textContent='Tabella articoli: '+TCkeys.length.toLocaleString('it-IT')+' codici';
+}
+function noTab(){ TC=null; TCkeys=[]; for(const k in NORM) delete NORM[k]; $('tabStat').textContent='Tabella articoli non caricata: caricala dal file, oppure scrivi fase e TC a mano.'; $('tabLoad').hidden=false; $('mTab').textContent='Tabella articoli: da caricare'; }
+function pickTab(){ $('tabFile').value=''; $('tabFile').click(); }
+$('tabLoad').addEventListener('click',pickTab);
+$('mTab').addEventListener('click',()=>{ $('menuSheet').hidden=true; if(TC&&!confirmTab){ confirmTab=true; toast('Tocca di nuovo per sostituire la tabella'); $('menuSheet').hidden=false; setTimeout(()=>{confirmTab=false;},4000); return; } confirmTab=false; pickTab(); });
+let confirmTab=false;
+$('tabFile').addEventListener('change',async()=>{ const f=$('tabFile').files[0]; if(!f) return;
+  try{ const txt=await f.text(); useTab(txt); await idbSet('tc',txt); try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){} toast('Tabella caricata: '+TCkeys.length.toLocaleString('it-IT')+' codici'); }
+  catch(e){ toast('File non valido: scegli tabella_tempi_ciclo.json'); } });
+(async()=>{ try{ const txt=await idbGet('tc'); if(txt) useTab(txt); else noTab(); }catch(e){ noTab(); } })();
+
+/* ---------- nuovo rilievo ---------- */
+function openSetup(){ const open=S&&S.stato!=='chiuso'&&allCycles().length; $('setupWarn').hidden=!open; if(open) $('setupWarn').textContent='Il rilievo '+S.articolo+' ('+allCycles().length+' cicli) viene archiviato nei «Rilievi salvati».'; $('setupOk').textContent=open?'Archivia e inizia':'Inizia'; $('setup').hidden=false; setTimeout(()=>$('fArt').focus(),50); }
+$('btnSetup').addEventListener('click',openSetup);
+$('setupCancel').addEventListener('click',()=>{ $('setup').hidden=true; });
+$('setupForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  const sel=$('fFaseSel'); const fase=(!sel.hidden&&sel.value!==''&&sel.value!=='altra')?TC.fasi[sel._rows[+sel.value][0]]:$('fFase').value.trim();
+  if(!fase){ toast('Scegli la fase'); return; }
+  if(S&&allCycles().length) pushHist(S); halt();
+  const els=$('fElems').value.split(',').map(s=>s.trim()).filter(Boolean);
+  S=newR({articolo:$('fArt').value.trim().toUpperCase(),codiceSistema:artSel?(artSel.usato||''):'',fase,descrizione:artSel?(artSel.d||artSel.e.d||''):'',tcFonte:$('tcInfo').textContent?($('tcInfo').dataset.f||''):'',operatrice:$('fOp').value.trim().toUpperCase(),ritmo:parseFloat($('fRitmo').value)||1,unita:$('fUnit').value,tc:parseFloat(($('fTc').value||'').replace(',','.'))||null,magg:parseFloat($('fMagg').value)||0.13,note:$('fNote').value.trim(),elementiCiclo:els});
+  ['fArt','fOp','fTc','fNote','fElems'].forEach(id=>$(id).value=''); fillFromArt(null);
+  $('setup').hidden=true; wasOk=false; touch();
+});
+function pushHist(r){ histCache=[r].concat(histCache.filter(x=>x.id!==r.id)).slice(0,60); }
+
+/* ---------- copia ---------- */
+function timesOf(o){ return o.cicli.map(c=>fmtS(c.t)+(c.ev?'('+label(c.ev.k)+(c.ev.note?': '+c.ev.note:'')+')':'')).join(';'); }
+function times(){
+  const head=S.articolo+(S.codiceSistema&&S.codiceSistema!==S.articolo?' [a sistema '+S.codiceSistema+']':'')+' · '+S.fase+(S.tc?' · TC vigente '+String(S.tc).replace('.',','):'');
+  const multi=S.operatrici.length>1;
+  return head+'\n'+S.operatrici.map((o,i)=>(multi?'Op.'+(i+1):'Op.')+(o.code?' '+o.code:'')+(o.ritmo!==1||multi?' (ritmo '+String(o.ritmo).replace('.',',')+')':'')+': '+timesOf(o)).join('\n'); }
+function summary(){
+  const g=global(); let out=S.articolo+(S.codiceSistema&&S.codiceSistema!==S.articolo?' [a sistema '+S.codiceSistema+']':'')+(S.descrizione?' ('+S.descrizione+')':'')+' · '+S.fase+' · '+S.data+(S.oraInizio?' '+S.oraInizio:'')+(S.oraFine?'–'+S.oraFine:'')+(S.lotto?' · lotto '+S.lotto:'')+' · unità '+S.unita+(S.tc?' · TC vigente '+String(S.tc).replace('.',','):'')+' · maggiorazioni '+Math.round(S.magg*100)+'%\n';
+  if(S.tcFonte) out+='fonte TC: '+S.tcFonte+'\n';
+  S.operatrici.forEach((o,i)=>{ const st=colStats(o); out+='Op.'+(i+1)+(o.code?' '+o.code:'')+' (ritmo '+String(o.ritmo).replace('.',',')+'): '+timesOf(o)+'\n'; if(st.n) out+='   regolari '+st.n+', media '+fmtS(st.m)+' s, CV '+Math.round(st.cv*100)+'%, R/x̄ '+st.rx.toFixed(2).replace('.',',')+', cicli necessari ±10%: '+(st.need?Math.max(st.need,10):'—')+', tempo normale '+fmt3(st.norm/60)+' min\n'; });
+  if(S.elementiCiclo.length){ out+='elementi del ciclo: '+S.elementiCiclo.join(', ')+'; medie per elemento (regolari): '; const all=allCycles().filter(x=>x.c.parts&&(!x.c.ev||x.c.ev.s==='in')); if(all.length) out+=S.elementiCiclo.map((n,j)=>n+' '+fmtS(all.reduce((a,x)=>a+x.c.parts[j],0)/all.length)+' s').join(', '); out+='\n'; }
+  S.elementi.forEach(e=>{ out+='elemento a frequenza: '+e.nome+' ogni '+e.ogni+' pz, '+e.tempi.map(fmtS).join(';')+' s → media '+fmtS(e.media)+' s = '+(e.media/e.ogni).toFixed(2).replace('.',',')+' s/pz\n'; });
+  const ev=allCycles().filter(x=>x.c.ev&&x.c.ev.s!=='in'); if(ev.length) out+='anomalie ('+ev.length+' su '+g.N+' pezzi): '+ev.map(x=>fmtS(x.c.t)+' s '+label(x.c.ev.k)+(x.c.ev.note?' – '+x.c.ev.note:'')).join('; ')+'\n';
+  if(g.cols.length){ out+='standard ciclo regolare '+fmt3(g.std)+' min/'+S.unita; if(g.k) out+='; con rilavorazione ('+g.k+' su '+g.N+', +'+g.extra.toFixed(1).replace('.',',')+' s) '+fmt3(g.stdR); if(S.tc) out+='; vigente '+String(S.tc).replace('.',',')+' = '+((S.tc/g.std-1)*100).toFixed(0)+'% sullo standard'; out+='\n'; }
+  if(S.note) out+='note: '+S.note+'\n'; return out;
+}
+async function copy(txt){ try{ await navigator.clipboard.writeText(txt); toast('Copiato'); }catch(e){ const ta=document.createElement('textarea'); ta.value=txt; ta.style.cssText='position:fixed;left:16px;right:16px;bottom:100px;height:160px;z-index:40'; document.body.appendChild(ta); ta.select(); toast('Seleziona e copia il testo'); setTimeout(()=>ta.remove(),10000); } }
+
+/* ---------- menu ---------- */
+function mclose(){ $('menuSheet').hidden=true; }
+$('btnMenu').addEventListener('click',()=>{ $('menuSheet').hidden=false; });
+$('menuClose').addEventListener('click',mclose);
+$('mEsito').addEventListener('click',()=>{ mclose(); openEsito(); });
+$('mElem').addEventListener('click',()=>{ mclose(); openElem(); });
+$('mOp').addEventListener('click',()=>{ mclose(); if(!S) return; $('opSheet').hidden=false; setTimeout(()=>$('oCode').focus(),50); });
+$('mUndo').addEventListener('click',()=>{ mclose(); if(!S) return; if(parts.length){ parts.pop(); render(); toast('Ultimo elemento tolto'); return; } const o=col(); if(o.cicli.length){ o.cicli.pop(); touch(); toast('Ultimo giro tolto'); } });
+$('mHist').addEventListener('click',()=>{ mclose(); openHist(); });
+const THEMES=['auto','light','dark'];
+function applyTheme(t){ if(t==='auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme',t); $('mTheme').textContent='Tema: '+({auto:'automatico',light:'chiaro',dark:'scuro'}[t]); try{ localStorage.setItem(KEY+'_theme',t); }catch(e){} }
+$('mTheme').addEventListener('click',()=>{ let t='auto'; try{ t=localStorage.getItem(KEY+'_theme')||'auto'; }catch(e){} applyTheme(THEMES[(THEMES.indexOf(t)+1)%3]); });
+
+/* ---------- invio automatico (GitHub) ---------- */
+const GHK=KEY+'_gh';
+function ghCfg(){ try{ const c=JSON.parse(localStorage.getItem(GHK)||'null'); return c&&c.repo&&c.token?c:null; }catch(e){ return null; } }
+function b64(s){ return btoa(unescape(encodeURIComponent(s))); }
+function ghPath(r){ return 'rilievi/'+r.data+'_'+String(r.articolo).replace(/[^A-Za-z0-9_-]/g,'-')+'_'+r.id+'.json'; }
+function ghReq(cfg,method,url,body){ return fetch('https://api.github.com/repos/'+cfg.repo+url,{method,cache:'no-store',headers:{'Authorization':'Bearer '+cfg.token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'},body:body?JSON.stringify(body):undefined}); }
+async function ghSha(cfg,path){ try{ const g=await ghReq(cfg,'GET','/contents/'+path); if(g.ok) return (await g.json()).sha; }catch(e){} return null; }
+let ghBusy=false;
+async function ghPush(r){
+  const cfg=ghCfg(); if(!cfg) return false;
+  const path=ghPath(r); const rec=JSON.parse(JSON.stringify(r)); delete rec.gh;
+  const body={message:'Rilievo '+r.articolo+' · '+r.fase+' · '+r.data,content:b64(JSON.stringify(rec,null,1))};
+  let sha=r.gh&&r.gh.sha; if(sha) body.sha=sha;
+  try{
+    let res=await ghReq(cfg,'PUT','/contents/'+path,body);
+    if(res.status===409||res.status===422){ sha=await ghSha(cfg,path); if(sha){ body.sha=sha; res=await ghReq(cfg,'PUT','/contents/'+path,body); } }
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j=await res.json(); r.gh={st:'ok',sha:j.content.sha,path,at:new Date().toISOString()}; return true;
+  }catch(e){ r.gh={st:'wait',sha:sha||null,path,err:String(e.message||e)}; return false; }
+}
+async function ghFlush(){
+  if(ghBusy||!ghCfg()) { renderSend(); return; } ghBusy=true; renderSend();
+  const list=[]; if(S) list.push(S); histCache.forEach(x=>{ if(!S||x.id!==S.id) list.push(x); });
+  for(const r of list){ if(r.stato==='chiuso'&&(!r.gh||r.gh.st!=='ok')&&r.operatrici.some(o=>o.cicli.length)) await ghPush(r); }
+  ghBusy=false; saveLocal(); renderSend();
+  const cfg=ghCfg(); if(cfg&&S&&!$('esitoSheet').hidden) $('sync').textContent=S.gh&&S.gh.st==='ok'?'Inviato a Claude ('+cfg.repo+').':'Non inviato: riprovo appena c\u2019è rete.';
+}
+async function ghDelete(r){ const cfg=ghCfg(); if(!cfg||!r.gh||!r.gh.path) return; try{ const sha=r.gh.sha||await ghSha(cfg,r.gh.path); if(sha) await ghReq(cfg,'DELETE','/contents/'+r.gh.path,{message:'Elimina rilievo '+r.articolo+' '+r.data,sha}); }catch(e){} }
+function renderSend(){
+  const chip=$('sendChip'); if(!chip) return; const cfg=ghCfg();
+  if(!S||S.stato!=='chiuso'||!allCycles().length){ chip.hidden=true; return; }
+  chip.hidden=false;
+  if(!cfg){ chip.className='sendchip'; $('sendTxt').textContent='invio automatico spento'; return; }
+  const st=S.gh&&S.gh.st; chip.className='sendchip '+(st==='ok'?'ok':ghBusy?'wait':'err');
+  $('sendTxt').textContent=st==='ok'?'inviato a Claude':ghBusy?'invio in corso…':'non inviato: riprovo appena c\u2019è rete';
+}
+function openSend(){ const c=ghCfg()||{}; $('gRepo').value=c.repo||''; $('gToken').value=c.token||''; $('gMsg').innerHTML=c.repo?'<div class="okbox">Attivo su <b>'+esc(c.repo)+'</b>.</div>':''; $('sendSheet').hidden=false; }
+$('gCancel').addEventListener('click',()=>{ $('sendSheet').hidden=true; });
+$('gOff').addEventListener('click',()=>{ try{ localStorage.removeItem(GHK); }catch(e){} $('gRepo').value=''; $('gToken').value=''; $('gMsg').innerHTML='<div class="warnbox">Invio automatico disattivato su questo telefono.</div>'; renderSend(); });
+$('sendForm').addEventListener('submit',async e=>{
+  e.preventDefault(); const repo=$('gRepo').value.trim().replace(/^https?:\/\/github\.com\//,'').replace(/\.git$/,'').replace(/\/$/,''); const token=$('gToken').value.trim();
+  if(!/^[\w.-]+\/[\w.-]+$/.test(repo)||!token){ $('gMsg').innerHTML='<div class="warnbox">Scrivi l\u2019archivio come utente/nome e incolla la chiave.</div>'; return; }
+  $('gMsg').innerHTML='<div class="sub">Verifico…</div>';
+  try{ const res=await ghReq({repo,token},'GET',''); if(res.status===401) throw new Error('chiave non valida o scaduta'); if(res.status===404) throw new Error('archivio non trovato, oppure la chiave non ha accesso a questo archivio'); if(!res.ok) throw new Error('risposta '+res.status);
+    const j=await res.json(); if(j.permissions&&!j.permissions.push) throw new Error('la chiave può leggere ma non scrivere: serve «Contents: read and write»');
+    try{ localStorage.setItem(GHK,JSON.stringify({repo,token})); }catch(err){}
+    $('gMsg').innerHTML='<div class="okbox">Collegato a <b>'+esc(repo)+'</b>'+(j.private?' (privato)':' — attenzione: l\u2019archivio è pubblico')+'. I rilievi chiusi partono da soli.</div>'; ghFlush();
+  }catch(err){ $('gMsg').innerHTML='<div class="warnbox">Collegamento non riuscito: '+esc(err.message||String(err))+'.</div>'; }
+});
+$('mSend').addEventListener('click',()=>{ mclose(); openSend(); });
+window.addEventListener('online',ghFlush);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) ghFlush(); });
+
+/* ---------- registro (db) ---------- */
+let saveT=0, writing=false, dirty=false;
+function queueSave(){ clearTimeout(saveT); saveT=setTimeout(persist,2500); }
+async function persist(){
+  if(!S) return; if(!db){ $('sync').className='sync'; $('sync').textContent='Salvato su questo telefono. A fine rilievo: Menu → Copia riepilogo.'; return; }
+  if(writing){ dirty=true; return; } writing=true;
+  try{ await db.collection('rilievi').doc(S.id).set(JSON.parse(JSON.stringify(S))); $('sync').className='sync'; $('sync').textContent='Salvato nel registro condiviso · '+new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}); }
+  catch(e){ $('sync').className='sync err'; $('sync').textContent='Registro non raggiungibile: i dati restano sul telefono.'; }
+  writing=false; if(dirty){ dirty=false; persist(); }
+}
+
+/* ---------- storico ---------- */
+async function openHist(){
+  let rows=histCache.slice(); if(S&&allCycles().length) rows=[S].concat(rows.filter(x=>x.id!==S.id));
+  if(db){ try{ const snap=await db.collection('rilievi').orderBy('createdAt','desc').limit(100).get(); rows=snap.docs.map(d=>migrate(d.data())); $('histSub').textContent=rows.length+' rilievi nel registro condiviso'; }catch(e){ $('histSub').textContent='Registro non raggiungibile: mostro quelli su questo telefono.'; } }
+  else $('histSub').textContent='Rilievi su questo telefono.';
+  const ul=$('histList'); ul.innerHTML=''; if(!rows.length) ul.innerHTML='<li><span class="meta">Nessun rilievo ancora.</span></li>';
+  rows.forEach(r=>{ const li=document.createElement('li'); const n=r.operatrici.reduce((a,o)=>a+o.cicli.length,0);
+    li.innerHTML='<div><b>'+esc(r.articolo)+'</b> <span class="meta">'+esc(r.fase)+'</span><div class="meta">'+esc(r.data)+' · '+n+' cicli · '+(r.stato==='chiuso'?'chiuso':'aperto')+(r.gh&&r.gh.st==='ok'?' · inviato':'')+'</div></div>';
+    const box=document.createElement('div'); box.style.cssText='display:flex;gap:6px;flex-shrink:0';
+    const del=document.createElement('button'); del.className='btn danger'; del.type='button'; del.textContent='Elimina';
+    del.addEventListener('click',async()=>{ if(!del.dataset.arm){ del.dataset.arm='1'; del.textContent='Conferma'; del.className='btn primary'; del.style.background='var(--bad)'; setTimeout(()=>{ if(del.isConnected){ delete del.dataset.arm; del.textContent='Elimina'; del.className='btn danger'; del.style.background=''; } },3500); return; }
+      ghDelete(r);
+      histCache=histCache.filter(x=>x.id!==r.id); if(S&&S.id===r.id){ halt(); S=null; } saveLocal(); render();
+      if(db){ try{ await db.collection('rilievi').doc(r.id).delete(); }catch(e){} }
+      li.remove(); toast('Rilievo eliminato'); });
+    const b=document.createElement('button'); b.className='btn'; b.type='button'; b.textContent='Apri'; b.addEventListener('click',()=>{ if(S&&allCycles().length&&S.id!==r.id) pushHist(S); halt(); S=JSON.parse(JSON.stringify(r)); saveLocal(); render(); $('histSheet').hidden=true; }); box.appendChild(del); box.appendChild(b); li.appendChild(box); ul.appendChild(li); });
+  $('histSheet').hidden=false;
+}
+$('histClose').addEventListener('click',()=>{ $('histSheet').hidden=true; });
+function toast(m){ const t=document.createElement('div'); t.className='toast'; t.textContent=m; document.body.appendChild(t); setTimeout(()=>t.remove(),1800); }
+window.addEventListener('resize',()=>{ if(!$('esitoSheet').hidden) drawChart(); });
+
+/* ---------- avvio ---------- */
+(function(){ const g=$('ticks'); let s=''; for(let k=0;k<60;k++){ const a=k*6*Math.PI/180, r1=k%5?41.5:40, r2=43; s+='<line class="tick" x1="'+(50+r1*Math.cos(a)).toFixed(2)+'" y1="'+(50+r1*Math.sin(a)).toFixed(2)+'" x2="'+(50+r2*Math.cos(a)).toFixed(2)+'" y2="'+(50+r2*Math.sin(a)).toFixed(2)+'"'+(k%5?'':' style="stroke-width:1.1"')+'/>'; } g.innerHTML=s; })();
+loadLocal(); let th='auto'; try{ th=localStorage.getItem(KEY+'_theme')||'auto'; }catch(e){} applyTheme(th); render();
+(async()=>{ try{ db=await window.claude.use('db'); }catch(e){ db=null; }
+  if(db){ $('sync').textContent='Collegato al registro condiviso: ogni giro viene salvato.'; if(S&&allCycles().length) queueSave(); }
+  else $('sync').textContent='Salvataggio su questo telefono. A fine rilievo usa Menu → Copia riepilogo e incolla il testo nella chat.';
+  ghFlush(); })();
+})();
+</script>
+
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}</script>
+</body>
+</html>

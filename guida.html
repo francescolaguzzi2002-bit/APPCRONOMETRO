@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Guida Cronometro Rilievi</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@300;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Manrope:wght@500;600;700;800&display=swap">
+<style>
+/* Layout: hero with a live demo dial beside the promise; then the six taps in reparto as an ordered strip of embossed badges; "quando serve" as a compact grid; one-time setup as a short ordered list. Same identity as the app. */
+:root{
+  --bg:#eceef6; --panel:#ffffff; --fg:#141a2e; --muted:#5d6584; --line:#d8dbea; --track:#dadeec;
+  --accent:#6a4cff; --accent-2:#9a7dff; --accent-soft:#ebe6ff;
+  --go:#0fae80; --go-2:#3fdcab; --stop:#e8384f; --stop-2:#ff7a8a; --amber:#f08c00; --amber-2:#ffc94d; --amber-fg:#2a1700;
+  --ok:#0f9e6e; --warn:#c77a00; --bad:#e0314a;
+  --btn:#e4e7f2; --btn-2:#f7f8fc; --btn-fg:#2a3150; --hi:rgba(255,255,255,.95); --sh:rgba(52,60,110,.2);
+  --display:"Bricolage Grotesque","Manrope","Helvetica Neue",Arial,sans-serif;
+  --body:"Manrope","Helvetica Neue",Arial,sans-serif;
+  --mono:"Azeret Mono","SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0c0f1d; --panel:#161a2e; --fg:#eef0fa; --muted:#9aa1c2; --line:#262b46; --track:#232843;
+  --accent:#8466ff; --accent-2:#b29cff; --accent-soft:#2a2350;
+  --go:#14b886; --go-2:#5ce8bd; --stop:#f0445b; --stop-2:#ff8c9a; --amber:#f59f00; --amber-2:#ffd166; --amber-fg:#2a1700;
+  --ok:#3ddc97; --warn:#ffc046; --bad:#ff6b81;
+  --btn:#1d2238; --btn-2:#262c47; --btn-fg:#dfe3f6; --hi:rgba(255,255,255,.05); --sh:rgba(0,0,0,.6); color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0c0f1d; --panel:#161a2e; --fg:#eef0fa; --muted:#9aa1c2; --line:#262b46; --track:#232843;
+  --accent:#8466ff; --accent-2:#b29cff; --accent-soft:#2a2350;
+  --go:#14b886; --go-2:#5ce8bd; --stop:#f0445b; --stop-2:#ff8c9a; --amber:#f59f00; --amber-2:#ffd166; --amber-fg:#2a1700;
+  --ok:#3ddc97; --warn:#ffc046; --bad:#ff6b81;
+  --btn:#1d2238; --btn-2:#262c47; --btn-fg:#dfe3f6; --hi:rgba(255,255,255,.05); --sh:rgba(0,0,0,.6); color-scheme:dark }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 48px}
+.wrap{max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:44px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(34px,7vw,54px);font-weight:800;line-height:1.02}
+h2{font-size:clamp(24px,4.4vw,30px);font-weight:800}
+h3{font-size:18px;font-weight:700}
+p{margin:0}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.lead{font-size:18px;color:var(--muted);max-width:44ch}
+code,.mono{font-family:var(--mono);font-size:.92em}
+code{background:var(--accent-soft);padding:1px 6px;border-radius:6px}
+svg.i{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
+/* hero */
+.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:28px;align-items:center}
+.hero .txt{display:flex;flex-direction:column;gap:16px;min-width:0}
+.promise{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.promise div{display:flex;gap:10px;align-items:center;font-weight:700}
+.promise i{width:10px;height:10px;border-radius:50%;flex:none}
+.demo{display:flex;flex-direction:column;align-items:center;gap:14px}
+.dial{position:relative;width:min(72vw,270px);max-width:100%;aspect-ratio:1;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,var(--btn-2),var(--panel) 60%);box-shadow:12px 12px 28px var(--sh),-10px -10px 26px var(--hi),inset 0 0 0 1px var(--line)}
+.dial svg{position:absolute;inset:3%;width:94%;height:94%;transform:rotate(-90deg)}
+.dial .track{fill:none;stroke:var(--track);stroke-width:4}
+.dial .prog{fill:none;stroke:var(--accent);stroke-width:4;stroke-linecap:round;stroke-dasharray:289.03;stroke-dashoffset:289.03;transition:stroke-dashoffset .5s cubic-bezier(.2,.8,.2,1),stroke .4s}
+.dial .tick{stroke:var(--muted);stroke-width:.6;opacity:.45}
+.dial.ok .prog{stroke:var(--ok)} .dial.warn .prog{stroke:var(--warn)}
+.face{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.t{font-family:var(--mono);font-weight:300;font-size:clamp(38px,11vw,52px);letter-spacing:-.05em;font-variant-numeric:tabular-nums;line-height:1}
+.cnt{font-family:var(--mono);font-weight:600;font-size:19px;font-variant-numeric:tabular-nums}
+.cnt .of{color:var(--muted)}
+.lbl{font-size:12px;font-weight:700;color:var(--muted);min-height:16px}
+.dial.ok .cnt b,.dial.ok .lbl{color:var(--ok)} .dial.warn .cnt b{color:var(--warn)}
+.dial.glow{animation:glow 1.1s ease-out}
+@keyframes glow{35%{box-shadow:12px 12px 28px var(--sh),-10px -10px 26px var(--hi),0 0 0 14px rgba(61,220,151,.35)}100%{box-shadow:12px 12px 28px var(--sh),-10px -10px 26px var(--hi),0 0 0 26px rgba(61,220,151,0)}}
+.laps{list-style:none;margin:0;padding:0;width:min(72vw,270px);max-width:100%;font-family:var(--mono);font-size:14px;font-variant-numeric:tabular-nums;height:96px;overflow:hidden}
+.laps li{display:flex;justify-content:space-between;padding:6px 4px;border-bottom:1px solid var(--line)}
+.laps li span:first-child{font-family:var(--body);font-weight:700;color:var(--muted)}
+.laps li.out span{color:var(--bad)}
+.laps li.new{animation:slide .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes slide{from{transform:translateY(-12px);background:var(--accent-soft)}}
+.demo-note{font-size:12px;color:var(--muted)}
+
+/* embossed badges = the app's buttons */
+.badge{--c1:var(--btn);--c2:var(--btn-2);--fgc:var(--btn-fg);width:58px;height:58px;flex:none;border-radius:50%;display:grid;place-items:center;color:var(--fgc);
+  background:linear-gradient(145deg,var(--c2),var(--c1));
+  box-shadow:6px 6px 14px var(--sh),-5px -5px 12px var(--hi),inset 2px 2px 2px rgba(255,255,255,.35),inset -3px -4px 8px rgba(0,0,0,.16);
+  transition:transform .2s}
+.badge svg.i{filter:drop-shadow(0 1px 1px rgba(0,0,0,.25))}
+.badge.go{--c1:var(--go);--c2:var(--go-2);--fgc:#fff} .badge.lap{--c1:var(--accent);--c2:var(--accent-2);--fgc:#fff}
+.badge.stop{--c1:var(--stop);--c2:var(--stop-2);--fgc:#fff} .badge.amber{--c1:var(--amber);--c2:var(--amber-2);--fgc:var(--amber-fg)}
+.badge.sm{width:44px;height:44px} .badge.sm svg.i{width:20px;height:20px}
+
+/* steps */
+.sec{display:flex;flex-direction:column;gap:18px}
+.sec > p{color:var(--muted);max-width:62ch}
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;counter-reset:s}
+.step{background:var(--panel);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0;border:1px solid var(--line);
+  animation:rise .5s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--k)*70ms)}
+@keyframes rise{from{transform:translateY(14px)}}
+.step:hover .badge{transform:translateY(-3px) rotate(-6deg)}
+.step .head{display:flex;align-items:center;gap:12px}
+.step .num{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--muted)}
+.step p{font-size:15px;color:var(--muted)}
+.step p b{color:var(--fg)}
+.ring-legend{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:2px}
+.ring-legend div{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--muted);text-align:center}
+.ring-legend span{width:26px;height:26px;border-radius:50%;border:4px solid currentColor}
+.formula{font-family:var(--mono);font-size:14px;background:var(--bg);border-radius:10px;padding:8px 10px;color:var(--fg)}
+
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.tip{display:flex;gap:14px;align-items:flex-start;padding:14px;border-radius:16px;background:var(--panel);border:1px solid var(--line);min-width:0}
+.tip h3{font-size:16px} .tip p{font-size:14.5px;color:var(--muted);margin-top:2px}
+
+/* setup */
+.setup{background:linear-gradient(160deg,var(--accent-soft),transparent 70%),var(--panel);border:1px solid var(--line);border-radius:22px;padding:22px;display:flex;flex-direction:column;gap:16px}
+.setup ol{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:14px;counter-reset:n}
+.setup li{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start;counter-increment:n}
+.setup li::before{content:counter(n);width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-family:var(--mono);font-weight:700;color:#fff;
+  background:linear-gradient(145deg,var(--accent-2),var(--accent));box-shadow:3px 3px 8px var(--sh)}
+.setup li div{min-width:0} .setup li p{color:var(--muted);font-size:15px}
+.path{font-weight:700;color:var(--fg)}
+.note{font-size:14px;color:var(--muted);border-left:3px solid var(--amber);padding-left:12px}
+footer{font-size:13px;color:var(--muted)}
+
+@media (max-width:760px){ .hero{grid-template-columns:1fr} .demo{order:-1} .steps{grid-template-columns:1fr 1fr} }
+@media (max-width:520px){ .steps,.grid{grid-template-columns:1fr} }
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<main class="wrap">
+  <section class="hero">
+    <div class="txt">
+      <span class="eyebrow">Guida rapida · Assut Europe · rilievo tempi ciclo</span>
+      <h1>Cronometro Rilievi</h1>
+      <p class="lead">Scrivi il codice, tocca a ogni ciclo. L'app ti dice quanti cicli servono e, quando chiudi, manda i tempi a Claude.</p>
+      <div class="promise">
+        <div><i style="background:var(--accent)"></i>Fase e TC vigente compilati dal codice articolo</div>
+        <div><i style="background:var(--ok)"></i>Cicli necessari calcolati a ogni giro</div>
+        <div><i style="background:var(--amber)"></i>Nessun tempo da ricopiare in Excel</div>
+      </div>
+    </div>
+    <div class="demo" aria-label="Esempio animato di un rilievo">
+      <div class="dial" id="dDial">
+        <svg viewBox="0 0 100 100" aria-hidden="true"><g id="dTicks"></g><circle class="track" cx="50" cy="50" r="46"/><circle class="prog" id="dRing" cx="50" cy="50" r="46"/></svg>
+        <div class="face"><div class="t" id="dT">0,00</div><div class="cnt"><b id="dN">0</b><span class="of"> / 10</span></div><div class="lbl" id="dL">cicli</div></div>
+      </div>
+      <ul class="laps" id="dLaps"></ul>
+      <div class="demo-note">Esempio con tempi di prova, non un rilievo reale.</div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <span class="eyebrow">In reparto</span>
+    <h2>Un rilievo in sei passi</h2>
+    <ol class="steps">
+      <li class="step" style="--k:0"><div class="head"><span class="badge"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><span class="num">01</span></div>
+        <h3>Nuovo rilievo</h3><p>Tocca <b>+</b> e scrivi il codice, anche senza trattini o suffissi: <code>AB1234</code> trova <code>AB-1234_E</code>. Scegli la fase: il <b>TC vigente</b> si compila da solo. Aggiungi l'operatrice.</p></li>
+      <li class="step" style="--k:1"><div class="head"><span class="badge go"><svg class="i" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z" fill="currentColor"/></svg></span><span class="num">02</span></div>
+        <h3>Avvia, poi Giro</h3><p>Il tasto verde fa partire il tempo. Da lì diventa <b>Giro</b>: toccalo a ogni fine ciclo, oppure tocca il quadrante. Un doppio tocco sotto 0,8 s viene ignorato.</p></li>
+      <li class="step" style="--k:2"><div class="head"><span class="badge amber"><svg class="i" viewBox="0 0 24 24"><path d="M12 3.5 2.5 20h19z" fill="currentColor" fill-opacity=".2"/><path d="M12 10v4.5M12 17.6v.1"/></svg></span><span class="num">03</span></div>
+        <h3>Segna l'anomalia</h3><p>Se nel ciclo in corso succede qualcosa, tocca <b>!</b> e scegli: <b>rilavorazione</b>, <b>evento estraneo</b>, <b>a frequenza</b> o <b>parte del ciclo</b>. Viene applicata al giro che stai misurando.</p></li>
+      <li class="step" style="--k:3"><div class="head"><span class="badge"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 8 8" stroke-width="3.2"/></svg></span><span class="num">04</span></div>
+        <h3>Guarda l'anello</h3><p>Il numero sotto il tempo è <b>cicli fatti / cicli necessari</b>, aggiornato a ogni giro.</p>
+        <div class="formula">n = (1,96 · CV / 0,10)²  · minimo 10</div>
+        <div class="ring-legend"><div style="color:var(--accent)"><span></span>primi 5</div><div style="color:var(--warn)"><span></span>prosegui</div><div style="color:var(--ok)"><span></span>basta</div><div style="color:var(--bad)"><span></span>separa l'evento</div></div></li>
+      <li class="step" style="--k:4"><div class="head"><span class="badge stop"><svg class="i" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg></span><span class="num">05</span></div>
+        <h3>Stop</h3><p>Un tocco ferma e chiude il rilievo e apre l'<b>Esito</b>: media, CV, tempo standard, valore con rilavorazione e confronto con il vigente. Il ciclo lasciato a metà non viene contato.</p></li>
+      <li class="step" style="--k:5"><div class="head"><span class="badge lap"><svg class="i" viewBox="0 0 24 24"><path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19 10a4 4 0 0 1-1 8"/><path d="M12 12v8M9 15l3-3 3 3"/></svg></span><span class="num">06</span></div>
+        <h3>Arriva a Claude</h3><p>Sotto il quadrante compare <b>inviato a Claude</b> con il pallino verde. Senza rete l'invio riparte da solo. Poi in chat basta scrivere <b>«leggi i nuovi rilievi»</b>.</p></li>
+    </ol>
+  </section>
+
+  <section class="sec">
+    <span class="eyebrow">Quando serve</span>
+    <h2>Le altre funzioni</h2>
+    <div class="grid">
+      <div class="tip"><span class="badge sm"><svg class="i" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span><div><h3>Tabella articoli</h3><p>Non è nel sito, per riservatezza. La prima volta: Menu → <b>Tabella articoli</b> → scegli il file <code>tabella_tempi_ciclo.json</code> che ti sei mandato sul telefono. Resta salvata solo sul telefono; per aggiornarla ripeti con il file nuovo.</p></div></div>
+      <div class="tip"><span class="badge sm"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><path d="M12 9v4l2 2M10 2h4"/></svg></span><div><h3>Elemento a frequenza</h3><p>Menu → <b>Elemento a frequenza</b>: cambio busta, vaschetta. Scrivi ogni quanti pezzi capita e cronometralo a parte. Il tempo esce dal ciclo e diventa secondi per pezzo.</p></div></div>
+      <div class="tip"><span class="badge sm"><svg class="i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0M17 8v6M14 11h6"/></svg></span><div><h3>Seconda operatrice</h3><p>Menu → <b>Nuova operatrice</b>: i cicli vanno in una colonna nuova. Lo standard è la media tra le operatrici.</p></div></div>
+      <div class="tip"><span class="badge sm"><svg class="i" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></span><div><h3>Correggere un giro</h3><p>Tocca il giro nell'elenco: cambi il tempo o la segnalazione, oppure lo elimini. Menu → <b>Annulla ultimo giro</b> toglie l'ultimo.</p></div></div>
+      <div class="tip"><span class="badge sm go"><svg class="i" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z" fill="currentColor"/></svg></span><div><h3>Riprendere</h3><p>Dopo lo Stop il tasto verde diventa <b>Riprendi</b>. I nuovi cicli si aggiungono e l'invio aggiorna lo stesso file.</p></div></div>
+      <div class="tip"><span class="badge sm stop"><svg class="i" viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg></span><div><h3>Eliminare una prova</h3><p>Menu → <b>Rilievi salvati</b> → <b>Elimina</b>, poi <b>Conferma</b>. Il rilievo sparisce anche da quelli inviati.</p></div></div>
+      <div class="tip"><span class="badge sm amber"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span><div><h3>Codice senza TC</h3><p>Se il codice è in griglia ma non nello storico, vedi le fasi con <b>TC da inserire</b>. Se è sconosciuto, scrivi fase e TC a mano: misuri lo stesso.</p></div></div>
+    </div>
+  </section>
+
+  <section class="setup">
+    <span class="eyebrow">Una volta sola</span>
+    <h2>Collega l'invio automatico</h2>
+    <p class="lead" style="font-size:16px">I rilievi finiscono in un archivio GitHub privato, solo tuo. L'app scrive lì, Claude legge da lì.</p>
+    <ol>
+      <li><div><h3>Crea l'archivio</h3><p>Su github.com: <span class="path">+ → New repository</span>, nome <code>rilievi-dati</code>, visibilità <b>Private</b>, poi <span class="path">Create repository</span>.</p></div></li>
+      <li><div><h3>Crea la chiave per l'app</h3><p>Conviene farlo dal browser del telefono, così la copi e incolli subito. <span class="path">Foto profilo → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token</span>. In <b>Repository access</b> scegli <b>Only select repositories</b> → <code>rilievi-dati</code>. In <b>Permissions</b> → <b>Contents</b> metti <b>Read and write</b>. Scegli una scadenza dopo la laurea, genera e copia la chiave.</p></div></li>
+      <li><div><h3>Inseriscila nell'app</h3><p>Menu → <span class="path">Invio automatico a Claude</span>: archivio <code>tuo-utente/rilievi-dati</code>, incolla la chiave, <span class="path">Prova e salva</span>. Deve comparire <b>Collegato … (privato)</b>.</p></div></li>
+      <li><div><h3>Fai leggere l'archivio a Claude</h3><p>Dal PC collega il tuo account GitHub a Claude nelle impostazioni di claude.ai. Da quel momento, in chat, «leggi i nuovi rilievi» basta per avere schede, Registro e Proposta.</p></div></li>
+    </ol>
+    <p class="note">La chiave resta solo sul telefono e apre solo l'archivio dei rilievi. Se il telefono cambia o la chiave scade, ne crei una nuova e la reinserisci.</p>
+  </section>
+
+  <footer>Cronometro Rilievi · regola dei cicli dalla tesi: n = (1,96 · CV / 0,10)², minimo 10 cicli per operatrice · maggiorazioni 13%, 16% micro.</footer>
+</main>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  let s=''; for(let k=0;k<60;k++){ const a=k*6*Math.PI/180, r1=k%5?41.5:40, r2=43; s+='<line class="tick" x1="'+(50+r1*Math.cos(a)).toFixed(2)+'" y1="'+(50+r1*Math.sin(a)).toFixed(2)+'" x2="'+(50+r2*Math.cos(a)).toFixed(2)+'" y2="'+(50+r2*Math.sin(a)).toFixed(2)+'"'+(k%5?'':' style="stroke-width:1.1"')+'/>'; }
+  $('dTicks').innerHTML=s;
+  // tempi di prova per l'animazione (accelerata 4x)
+  const DEMO=[9.21,10.05,8.87,9.63,21.4,9.48,9.92,9.11,10.27,9.54,9.36];
+  const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fmt=x=>x.toFixed(2).replace('.',',');
+  function show(laps,cur){
+    const reg=laps.filter(l=>!l.out).map(l=>l.t); const n=reg.length; let need=10, cls='', lbl='cicli';
+    if(n>=5){ const m=reg.reduce((a,b)=>a+b,0)/n; const sd=Math.sqrt(reg.reduce((a,b)=>a+(b-m)*(b-m),0)/(n-1)); need=Math.max(10,Math.ceil(Math.pow(1.96*sd/m/0.1,2))); cls=n>=need?'ok':'warn'; lbl=n>=need?'sufficiente':'mancano '+(need-n); }
+    $('dN').textContent=n; $('dL').textContent=lbl; $('dRing').style.strokeDashoffset=289.03*(1-Math.min(1,n/need));
+    const d=$('dDial'); const wasOk=d.classList.contains('ok'); d.className='dial '+cls; if(cls==='ok'&&!wasOk){ void d.offsetWidth; d.classList.add('glow'); }
+    $('dT').textContent=fmt(cur);
+  }
+  function addLap(i,l){ const ul=$('dLaps'); const li=document.createElement('li'); li.className='new'+(l.out?' out':''); li.innerHTML='<span>Giro '+(i+1)+(l.out?' · rilavorazione':'')+'</span><span>'+fmt(l.t)+'</span>'; ul.insertBefore(li,ul.firstChild); while(ul.children.length>4) ul.lastChild.remove(); }
+  const laps=DEMO.map((t,i)=>({t,out:i===4}));
+  if(reduce){ laps.slice(0,10).forEach((l,i)=>addLap(i,l)); show(laps.slice(0,10),0); return; }
+  // stato iniziale visibile: già 3 giri fatti
+  let i=3, t0=performance.now(); laps.slice(0,3).forEach((l,k)=>addLap(k,l)); show(laps.slice(0,3),0);
+  function frame(now){
+    if(i>=laps.length){ if(now-t0>2600){ i=0; $('dLaps').innerHTML=''; t0=now; show([],0); } requestAnimationFrame(frame); return; }
+    const el=(now-t0)/1000*4;
+    if(el>=laps[i].t){ addLap(i,laps[i]); i++; t0=now; show(laps.slice(0,i),0); }
+    else $('dT').textContent=fmt(el);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
